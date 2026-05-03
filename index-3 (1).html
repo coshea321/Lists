@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1A3D1E" id="themeColor">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="FreshList">
+<link rel="manifest" href="manifest.json">
+<title>FreshList</title>
+<style>
+:root { --accent:#2D6B35; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:#F4EEE4;color:#1C2018;min-height:100dvh;max-width:480px;margin:0 auto}
+
+/* HEADER */
+header{background:var(--accent);padding:14px 18px 10px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;transition:background .25s}
+.app-title{font-family:Georgia,serif;font-size:22px;font-weight:600;color:#F4EEE4;flex:1}
+.hdr-badge{background:rgba(255,255,255,.25);color:#fff;border-radius:20px;padding:3px 10px;font-size:13px;font-weight:700;display:none}
+
+/* LIST TYPE SWITCHER */
+.type-bar{display:flex;gap:4px;padding:4px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.type-btn{flex:1;padding:8px 4px;border:none;border-radius:6px;font-family:inherit;font-size:13px;font-weight:700;color:#7A8772;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:all .2s}
+.type-btn.active{color:#fff;background:var(--accent)}
+
+/* CONTENT */
+.content{padding:14px 14px 90px}
+
+/* INPUT CARD */
+.input-card{background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(20,50,20,.09);padding:13px;margin-bottom:16px;position:relative}
+.input-row{display:flex;gap:9px;align-items:center}
+#itemInput{flex:1;border:2px solid #D8D0C0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:16px;color:#1C2018;background:#FDFAF3;outline:none;transition:border-color .15s}
+#itemInput:focus{border-color:var(--accent)}
+#itemInput::placeholder{color:#7A8772}
+.add-btn{width:44px;height:44px;flex-shrink:0;border:none;background:var(--accent);color:#fff;border-radius:9px;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.add-btn:active{opacity:.85}
+
+/* CATEGORY ROW */
+.cat-row{display:none;align-items:center;gap:8px;margin-top:9px;flex-wrap:wrap}
+.cat-label{font-size:12px;color:#7A8772;font-weight:600}
+.cat-chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;border:2px solid rgba(0,0,0,.12)}
+.cat-hint{font-size:11px;color:#7A8772}
+
+/* AUTOCOMPLETE */
+.ac{position:absolute;top:calc(100% + 5px);left:0;right:0;background:#fff;border-radius:9px;box-shadow:0 8px 32px rgba(20,50,20,.15);z-index:200;overflow:hidden;max-height:250px;overflow-y:auto;display:none}
+.ac-item{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;border-bottom:1px solid #D8D0C0}
+.ac-item:last-child{border-bottom:none}
+.ac-item:active{background:#F4EEE4}
+.ac-name{flex:1;font-size:15px}
+.ac-name b{color:var(--accent)}
+.ac-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.ac-times{font-size:11px;color:#7A8772}
+
+/* TABS */
+.tabs{display:flex;background:#fff;border-radius:9px;padding:4px;margin-bottom:14px;box-shadow:0 2px 12px rgba(20,50,20,.09);gap:4px}
+.tab{flex:1;padding:9px 8px;border:none;border-radius:6px;font-family:inherit;font-size:14px;font-weight:600;color:#7A8772;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .2s}
+.tab.active{background:var(--accent);color:#fff}
+.tab-badge{background:rgba(255,255,255,.25);border-radius:10px;padding:1px 7px;font-size:12px}
+#historyPanel{display:none}
+
+/* SECTION HEADER */
+.sec-hdr{display:flex;align-items:center;gap:8px;margin:18px 0 7px}
+.sec-hdr:first-child{margin-top:0}
+.sec-name{font-family:Georgia,serif;font-size:15px;font-weight:500;white-space:nowrap}
+.sec-line{flex:1;height:1px;background:#D8D0C0}
+.sec-count{font-size:11px;font-weight:700;color:#7A8772;background:#F4EEE4;padding:1px 7px;border-radius:10px}
+
+/* ITEM CARD */
+.item-card{background:#fff;border-radius:9px;padding:12px 12px 12px 13px;margin-bottom:5px;display:flex;align-items:center;gap:11px;box-shadow:0 1px 4px rgba(20,50,20,.07);cursor:pointer;border-left:3px solid transparent}
+.item-card.done{opacity:.65;background:#F8FAF8}
+.chk{width:26px;height:26px;flex-shrink:0;border:2.5px solid #D8D0C0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;transition:all .18s}
+.item-card.done .chk{background:var(--accent);border-color:var(--accent);color:#fff}
+.item-name{flex:1;font-size:15px;font-weight:500}
+.item-card.done .item-name{text-decoration:line-through;color:#7A8772}
+.item-pill{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;flex-shrink:0}
+.del-btn{width:28px;height:28px;flex-shrink:0;border:none;background:none;color:#C03030;font-size:18px;cursor:pointer;border-radius:6px;opacity:.25}
+.clear-btn{display:block;width:100%;margin-top:14px;padding:12px;border:2px dashed #D8D0C0;border-radius:9px;background:none;color:#7A8772;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+
+/* EMPTY */
+.empty{text-align:center;padding:56px 24px 32px;color:#7A8772}
+.empty-ico{font-size:52px;margin-bottom:12px}
+.empty-title{font-family:Georgia,serif;font-size:20px;color:#1C2018;margin-bottom:6px}
+.empty-sub{font-size:14px;line-height:1.5}
+
+/* HISTORY */
+.hist-search{margin-bottom:12px}
+.hist-search input{width:100%;border:2px solid #D8D0C0;border-radius:9px;padding:9px 12px;font-family:inherit;font-size:15px;color:#1C2018;background:#FDFAF3;outline:none}
+.hist-search input:focus{border-color:var(--accent)}
+.hist-item{background:#fff;border-radius:9px;padding:11px 12px;margin-bottom:5px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 4px rgba(20,50,20,.07);cursor:pointer}
+.hist-item:active{opacity:.85}
+.hist-emoji{font-size:20px;flex-shrink:0}
+.hist-body{flex:1;min-width:0}
+.hist-name{font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-meta{display:flex;align-items:center;gap:6px;margin-top:3px}
+.hist-cat{font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px}
+.hist-count{font-size:11px;color:#7A8772}
+.hist-add{width:32px;height:32px;flex-shrink:0;border:none;background:#D6EDDA;color:#1A3D1E;font-size:22px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700}
+.hist-add.in-list{background:#E8E8E8;color:#999;font-size:14px}
+
+/* MODAL */
+#modalOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:flex-end}
+#modalOverlay.open{display:flex}
+.modal-box{background:#fff;width:100%;border-radius:14px 14px 0 0;padding:18px 14px 28px;max-height:75vh;overflow-y:auto}
+.modal-title{font-family:Georgia,serif;font-size:18px;text-align:center;margin-bottom:14px}
+.picker-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.picker-opt{padding:12px;border-radius:9px;border:2.5px solid transparent;cursor:pointer;display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.picker-opt.sel{border-color:var(--accent)}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#1A3D1E;color:#fff;padding:10px 22px;border-radius:22px;font-size:14px;font-weight:600;z-index:500;white-space:nowrap;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.25);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+#toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header>
+  <div class="app-title" id="appTitle">FreshList</div>
+  <div class="hdr-badge" id="hdrBadge"></div>
+</header>
+
+<div class="type-bar" id="typeBar">
+  <button class="type-btn active" data-lt="grocery">🛒 Grocery</button>
+  <button class="type-btn"        data-lt="todo">✅ To-Do</button>
+  <button class="type-btn"        data-lt="travel">✈️ Travel</button>
+</div>
+
+<div class="content">
+  <div class="input-card">
+    <div class="input-row">
+      <input id="itemInput" type="text" placeholder="Add an item..." autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="add-btn" id="addBtn">+</button>
+    </div>
+    <div class="cat-row" id="catRow">
+      <span class="cat-label">Category:</span>
+      <span class="cat-chip" id="catChip"></span>
+      <span class="cat-hint" id="catHint">tap to change</span>
+    </div>
+    <div class="ac" id="ac"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tabList">List <span class="tab-badge" id="listBadge"></span></button>
+    <button class="tab" id="tabHistory">🕐 History</button>
+  </div>
+
+  <div id="listPanel">
+    <div id="listContent"></div>
+    <button class="clear-btn" id="clearBtn" style="display:none">✕ Clear completed</button>
+  </div>
+
+  <div id="historyPanel">
+    <div class="hist-search"><input id="histSearch" type="text" placeholder="Search history..." autocomplete="off"></div>
+    <div id="historyContent"></div>
+  </div>
+</div>
+
+<div id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-title">Choose a category</div>
+    <div class="picker-grid" id="pickerGrid"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ── LIST TYPES ───────────────────────────────────────────────
+var LIST_TYPES = {
+  grocery: { name:"🛒 Grocery",  placeholder:"Add an item…",   color:"#2D6B35", emptyIco:"🛒", emptyTitle:"Your list is empty",  emptySub:"Start typing — categories detect automatically." },
+  todo:    { name:"✅ To-Do",    placeholder:"Add a task…",    color:"#5A3AA0", emptyIco:"✅", emptyTitle:"No tasks yet",         emptySub:"Add a task above — it'll be categorised automatically." },
+  travel:  { name:"✈️ Travel",   placeholder:"Add to pack…",   color:"#1A5A8A", emptyIco:"✈️", emptyTitle:"Nothing packed yet",  emptySub:"Add items to pack — categories detect automatically." },
+};
+
+// ── GROCERY CATEGORIES & KEYWORDS ───────────────────────────
+var GROCERY_CATS = [
+  {id:"produce",  name:"Produce",       emoji:"🥦", bg:"#D9EDDA", fg:"#1A4A1E"},
+  {id:"dairy",    name:"Dairy & Eggs",  emoji:"🥛", bg:"#DDEEFF", fg:"#1A3A6A"},
+  {id:"meat",     name:"Meat & Fish",   emoji:"🥩", bg:"#FDDEDD", fg:"#7A1A1A"},
+  {id:"bakery",   name:"Bakery",        emoji:"🍞", bg:"#FFF0D8", fg:"#7A4A1A"},
+  {id:"frozen",   name:"Frozen",        emoji:"🧊", bg:"#D8F0FF", fg:"#0A3A6A"},
+  {id:"drinks",   name:"Drinks",        emoji:"🥤", bg:"#D8FFE8", fg:"#0A4A1A"},
+  {id:"pantry",   name:"Pantry",        emoji:"🥫", bg:"#F0E8D8", fg:"#5A3A1A"},
+  {id:"snacks",   name:"Snacks",        emoji:"🍫", bg:"#EED8FF", fg:"#3A1A7A"},
+  {id:"cleaning", name:"Cleaning",      emoji:"🧹", bg:"#E8E8E8", fg:"#3A3A3A"},
+  {id:"personal", name:"Personal Care", emoji:"🧴", bg:"#FFD8EC", fg:"#7A1A4A"},
+  {id:"other",    name:"Other",         emoji:"📦", bg:"#EDEAE4", fg:"#4A4A3A"},
+];
+var GROCERY_KW = [
+  ["oat milk","dairy"],["almond milk","dairy"],["soy milk","dairy"],["sour cream","dairy"],
+  ["double cream","dairy"],["single cream","dairy"],["clotted cream","dairy"],
+  ["creme fraiche","dairy"],["cottage cheese","dairy"],["cream cheese","dairy"],
+  ["semi-skimmed","dairy"],["skimmed milk","dairy"],
+  ["milk","dairy"],["cheese","dairy"],["yogurt","dairy"],["yoghurt","dairy"],
+  ["butter","dairy"],["cream","dairy"],["eggs","dairy"],["egg","dairy"],
+  ["cheddar","dairy"],["mozzarella","dairy"],["parmesan","dairy"],["brie","dairy"],
+  ["feta","dairy"],["gouda","dairy"],["edam","dairy"],["camembert","dairy"],
+  ["stilton","dairy"],["gruyere","dairy"],["ricotta","dairy"],["halloumi","dairy"],
+  ["mascarpone","dairy"],["ghee","dairy"],["kefir","dairy"],
+  ["sweet potato","produce"],["spring onion","produce"],["pak choi","produce"],["bok choy","produce"],
+  ["apple","produce"],["banana","produce"],["carrot","produce"],["lettuce","produce"],
+  ["tomato","produce"],["onion","produce"],["potato","produce"],["spinach","produce"],
+  ["broccoli","produce"],["cucumber","produce"],["pepper","produce"],["mushroom","produce"],
+  ["avocado","produce"],["lemon","produce"],["lime","produce"],["orange","produce"],
+  ["grape","produce"],["strawberr","produce"],["raspberr","produce"],["blueberr","produce"],
+  ["pear","produce"],["peach","produce"],["plum","produce"],["mango","produce"],
+  ["pineapple","produce"],["kiwi","produce"],["melon","produce"],["watermelon","produce"],
+  ["celery","produce"],["courgette","produce"],["zucchini","produce"],["aubergine","produce"],
+  ["eggplant","produce"],["cabbage","produce"],["kale","produce"],["leek","produce"],
+  ["garlic","produce"],["ginger","produce"],["coriander","produce"],["parsley","produce"],
+  ["basil","produce"],["mint","produce"],["chilli","produce"],["chili","produce"],
+  ["beetroot","produce"],["radish","produce"],["turnip","produce"],["parsnip","produce"],
+  ["butternut","produce"],["salad","produce"],["rocket","produce"],["fennel","produce"],
+  ["asparagus","produce"],["chard","produce"],["artichoke","produce"],["shallot","produce"],
+  ["smoked salmon","meat"],["sea bass","meat"],["sea bream","meat"],
+  ["chicken breast","meat"],["chicken thigh","meat"],["chicken wing","meat"],
+  ["chicken","meat"],["beef","meat"],["pork","meat"],["lamb","meat"],
+  ["mince","meat"],["steak","meat"],["sausage","meat"],["bacon","meat"],
+  ["ham","meat"],["turkey","meat"],["duck","meat"],["fish","meat"],
+  ["salmon","meat"],["tuna","meat"],["cod","meat"],["haddock","meat"],
+  ["prawn","meat"],["shrimp","meat"],["mussel","meat"],["oyster","meat"],
+  ["crab","meat"],["lobster","meat"],["mackerel","meat"],["sardine","meat"],
+  ["trout","meat"],["fillet","meat"],["brisket","meat"],["chorizo","meat"],
+  ["salami","meat"],["pepperoni","meat"],["pancetta","meat"],["lardons","meat"],
+  ["kipper","meat"],["venison","meat"],
+  ["english muffin","bakery"],["hot cross bun","bakery"],["bread roll","bakery"],
+  ["sourdough","bakery"],["baguette","bakery"],["croissant","bakery"],
+  ["bread","bakery"],["loaf","bakery"],["bagel","bakery"],["muffin","bakery"],
+  ["scone","bakery"],["donut","bakery"],["doughnut","bakery"],["pastry","bakery"],
+  ["pitta","bakery"],["pita","bakery"],["tortilla","bakery"],["naan","bakery"],
+  ["ciabatta","bakery"],["focaccia","bakery"],["brioche","bakery"],
+  ["crumpet","bakery"],["danish","bakery"],["waffle","bakery"],["cake","bakery"],
+  ["ice cream","frozen"],["ice lolly","frozen"],["fish finger","frozen"],
+  ["frozen pea","frozen"],["frozen veg","frozen"],["frozen meal","frozen"],
+  ["potato waffle","frozen"],["edamame","frozen"],["gelato","frozen"],
+  ["sorbet","frozen"],["frozen","frozen"],
+  ["orange juice","drinks"],["apple juice","drinks"],["coconut water","drinks"],
+  ["rose wine","drinks"],["red wine","drinks"],["white wine","drinks"],
+  ["sparkling water","drinks"],["energy drink","drinks"],["protein shake","drinks"],
+  ["water","drinks"],["juice","drinks"],["coffee","drinks"],["tea","drinks"],
+  ["wine","drinks"],["beer","drinks"],["cider","drinks"],
+  ["whiskey","drinks"],["whisky","drinks"],["vodka","drinks"],["gin","drinks"],
+  ["rum","drinks"],["cola","drinks"],["lemonade","drinks"],["squash","drinks"],
+  ["smoothie","drinks"],["kombucha","drinks"],["tonic","drinks"],
+  ["prosecco","drinks"],["champagne","drinks"],
+  ["olive oil","pantry"],["vegetable oil","pantry"],["coconut oil","pantry"],
+  ["peanut butter","pantry"],["tomato paste","pantry"],["tomato puree","pantry"],
+  ["soy sauce","pantry"],["hot sauce","pantry"],["fish sauce","pantry"],
+  ["oyster sauce","pantry"],["stock cube","pantry"],
+  ["baking powder","pantry"],["baking soda","pantry"],
+  ["chilli flakes","pantry"],["curry powder","pantry"],["black pepper","pantry"],
+  ["pasta","pantry"],["rice","pantry"],["flour","pantry"],["sugar","pantry"],
+  ["vinegar","pantry"],["cereal","pantry"],["oats","pantry"],["porridge","pantry"],
+  ["lentil","pantry"],["bean","pantry"],["chickpea","pantry"],
+  ["stock","pantry"],["broth","pantry"],["tinned","pantry"],["canned","pantry"],
+  ["honey","pantry"],["jam","pantry"],["nutella","pantry"],["syrup","pantry"],
+  ["salt","pantry"],["spice","pantry"],["cumin","pantry"],["paprika","pantry"],
+  ["turmeric","pantry"],["cinnamon","pantry"],["mustard","pantry"],
+  ["ketchup","pantry"],["mayonnaise","pantry"],["mayo","pantry"],
+  ["sriracha","pantry"],["yeast","pantry"],["cornflour","pantry"],
+  ["breadcrumb","pantry"],["noodle","pantry"],["quinoa","pantry"],
+  ["couscous","pantry"],["polenta","pantry"],["miso","pantry"],
+  ["tahini","pantry"],["passata","pantry"],["gravy","pantry"],
+  ["custard","pantry"],["nutmeg","pantry"],["bay leaf","pantry"],["oil","pantry"],
+  ["chocolate bar","snacks"],["granola bar","snacks"],["protein bar","snacks"],
+  ["rice cake","snacks"],["oat cake","snacks"],["rice cracker","snacks"],
+  ["dried fruit","snacks"],["mixed nuts","snacks"],["trail mix","snacks"],
+  ["crisps","snacks"],["chocolate","snacks"],["biscuit","snacks"],
+  ["cookie","snacks"],["almond","snacks"],["cashew","snacks"],
+  ["walnut","snacks"],["peanut","snacks"],["popcorn","snacks"],
+  ["cracker","snacks"],["sweets","snacks"],["candy","snacks"],["gummy","snacks"],
+  ["raisin","snacks"],["hummus","snacks"],["breadstick","snacks"],
+  ["washing up liquid","cleaning"],["dishwasher tablet","cleaning"],
+  ["fabric softener","cleaning"],["washing powder","cleaning"],
+  ["bin bag","cleaning"],["bin liner","cleaning"],
+  ["tin foil","cleaning"],["cling film","cleaning"],["kitchen roll","cleaning"],
+  ["paper towel","cleaning"],["air freshener","cleaning"],
+  ["toilet cleaner","cleaning"],["bathroom cleaner","cleaning"],
+  ["cleaning spray","cleaning"],["limescale","cleaning"],
+  ["detergent","cleaning"],["bleach","cleaning"],["sponge","cleaning"],
+  ["domestos","cleaning"],["dettol","cleaning"],["febreze","cleaning"],
+  ["persil","cleaning"],["ariel","cleaning"],["antibacterial","cleaning"],
+  ["toilet paper","personal"],["toilet roll","personal"],["loo roll","personal"],
+  ["shower gel","personal"],["hand soap","personal"],["body wash","personal"],
+  ["face wash","personal"],["body lotion","personal"],["hand cream","personal"],
+  ["dental floss","personal"],["cotton pads","personal"],["cotton buds","personal"],
+  ["baby wipes","personal"],["sanitary pad","personal"],["lip balm","personal"],
+  ["shampoo","personal"],["conditioner","personal"],["soap","personal"],
+  ["toothpaste","personal"],["toothbrush","personal"],["deodorant","personal"],
+  ["razor","personal"],["moisturiser","personal"],["moisturizer","personal"],
+  ["sunscreen","personal"],["sunblock","personal"],
+  ["tampon","personal"],["nappy","personal"],["diaper","personal"],
+  ["wipes","personal"],["tissues","personal"],
+  ["mouthwash","personal"],["perfume","personal"],["cologne","personal"],["aftershave","personal"],
+];
+
+// ── TODO CATEGORIES & KEYWORDS ───────────────────────────────
+var TODO_CATS = [
+  {id:"work",     name:"Work",     emoji:"💼", bg:"#E8E0FF", fg:"#3A1A8A"},
+  {id:"home",     name:"Home",     emoji:"🏠", bg:"#FFF0D8", fg:"#7A4A1A"},
+  {id:"errands",  name:"Errands",  emoji:"🏃", bg:"#D8FFE8", fg:"#0A4A1A"},
+  {id:"health",   name:"Health",   emoji:"❤️",  bg:"#FDDEDD", fg:"#7A1A1A"},
+  {id:"finance",  name:"Finance",  emoji:"💰", bg:"#FFFBD8", fg:"#6A5A1A"},
+  {id:"family",   name:"Family",   emoji:"👨‍👩‍👧", bg:"#FFD8EC", fg:"#7A1A4A"},
+  {id:"personal", name:"Personal", emoji:"⭐", bg:"#D8F0FF", fg:"#0A3A6A"},
+  {id:"other",    name:"Other",    emoji:"📦", bg:"#EDEAE4", fg:"#4A4A3A"},
+];
+var TODO_KW = [
+  ["standup","work"],["sprint","work"],["pull request","work"],["code review","work"],
+  ["meeting","work"],["email","work"],["report","work"],["presentation","work"],
+  ["deadline","work"],["phone call","work"],["conference","work"],["review","work"],
+  ["proposal","work"],["project","work"],["client","work"],["invoice","work"],
+  ["interview","work"],["quarterly","work"],["expense","work"],
+  ["hoover","home"],["vacuum","home"],["washing machine","home"],
+  ["clean","home"],["tidy","home"],["organise","home"],["organize","home"],
+  ["fix","home"],["repair","home"],["garden","home"],["mow","home"],
+  ["trim","home"],["plant","home"],["paint","home"],["decorate","home"],
+  ["laundry","home"],["dishwasher","home"],["rubbish","home"],
+  ["recycling","home"],["ironing","home"],
+  ["post office","errands"],["dry clean","errands"],["pick up","errands"],
+  ["drop off","errands"],["collect","errands"],["return","errands"],
+  ["bank","errands"],["pharmacy","errands"],["chemist","errands"],
+  ["appointment","errands"],["renew","errands"],["register","errands"],
+  ["licence","errands"],["license","errands"],
+  ["doctor","health"],["dentist","health"],["optician","health"],
+  ["gym","health"],["exercise","health"],["physio","health"],
+  ["blood test","health"],["check up","health"],["checkup","health"],
+  ["therapy","health"],["medication","health"],["prescription","health"],
+  ["run","health"],["jog","health"],["yoga","health"],["swim","health"],["cycle","health"],
+  ["mortgage","finance"],["rent","finance"],["utility","finance"],
+  ["tax return","finance"],["tax","finance"],["pension","finance"],
+  ["payment","finance"],["bill","finance"],["insurance","finance"],
+  ["savings","finance"],["direct debit","finance"],["standing order","finance"],
+  ["transfer","finance"],["budget","finance"],
+  ["school","family"],["pickup","family"],["birthday","family"],
+  ["gift","family"],["present","family"],["party","family"],
+  ["anniversary","family"],["wedding","family"],["babysitter","family"],
+  ["childcare","family"],["kids","family"],["children","family"],
+  ["mum","family"],["dad","family"],["parents","family"],["visit","family"],
+  ["read","personal"],["course","personal"],["learn","personal"],
+  ["study","personal"],["hobby","personal"],["journal","personal"],
+  ["meditate","personal"],["podcast","personal"],["research","personal"],
+  ["write","personal"],["book","personal"],
+];
+
+// ── TRAVEL CATEGORIES & KEYWORDS ─────────────────────────────
+var TRAVEL_CATS = [
+  {id:"documents",     name:"Documents",     emoji:"📄", bg:"#FFF0D8", fg:"#7A4A1A"},
+  {id:"clothing",      name:"Clothing",      emoji:"👗", bg:"#FFD8EC", fg:"#7A1A4A"},
+  {id:"toiletries",    name:"Toiletries",    emoji:"🪥", bg:"#D8F0FF", fg:"#0A3A6A"},
+  {id:"electronics",   name:"Electronics",   emoji:"🔌", bg:"#E8E0FF", fg:"#3A1A8A"},
+  {id:"health",        name:"Health",        emoji:"💊", bg:"#FDDEDD", fg:"#7A1A1A"},
+  {id:"money",         name:"Money & Cards", emoji:"💳", bg:"#FFFBD8", fg:"#6A5A1A"},
+  {id:"entertainment", name:"Entertainment", emoji:"📚", bg:"#D8FFE8", fg:"#0A4A1A"},
+  {id:"other",         name:"Other",         emoji:"📦", bg:"#EDEAE4", fg:"#4A4A3A"},
+];
+var TRAVEL_KW = [
+  ["boarding pass","documents"],["travel insurance","documents"],
+  ["driving licence","documents"],["driving license","documents"],
+  ["id card","documents"],["passport","documents"],["visa","documents"],
+  ["ticket","documents",""],["itinerary","documents"],["booking","documents"],
+  ["reservation","documents"],["insurance","documents"],["sim card","documents"],
+  ["swimming trunks","clothing"],["rain jacket","clothing"],["sun hat","clothing"],
+  ["flip flops","clothing"],["running shoes","clothing"],
+  ["underwear","clothing"],["socks","clothing"],["shoes","clothing"],
+  ["boots","clothing"],["sandals","clothing"],["hat","clothing"],
+  ["scarf","clothing"],["gloves","clothing"],["belt","clothing"],
+  ["suit","clothing"],["shorts","clothing"],["dress","clothing"],
+  ["skirt","clothing"],["trousers","clothing"],["jeans","clothing"],
+  ["shirt","clothing"],["t-shirt","clothing"],["tshirt","clothing"],
+  ["jumper","clothing"],["sweater","clothing"],["hoodie","clothing"],
+  ["jacket","clothing"],["coat","clothing"],["pyjamas","clothing"],
+  ["pajamas","clothing"],["bikini","clothing"],["swimsuit","clothing"],
+  ["swimwear","clothing"],["clothes","clothing"],
+  ["toothbrush","toiletries"],["toothpaste","toiletries"],
+  ["shower gel","toiletries"],["shampoo","toiletries"],["conditioner","toiletries"],
+  ["razor","toiletries"],["deodorant","toiletries"],["moisturiser","toiletries"],
+  ["moisturizer","toiletries"],["sunscreen","toiletries"],["sun cream","toiletries"],
+  ["aftersun","toiletries"],["makeup","toiletries"],["mascara","toiletries"],
+  ["lipstick","toiletries"],["perfume","toiletries"],["cologne","toiletries"],
+  ["hairbrush","toiletries"],["comb","toiletries"],["nail file","toiletries"],
+  ["cotton pads","toiletries"],["face wash","toiletries"],
+  ["contact lens","toiletries"],["lens solution","toiletries"],
+  ["plug adapter","electronics"],["travel adapter","electronics"],
+  ["power bank","electronics"],["portable charger","electronics"],
+  ["noise cancelling","electronics"],["memory card","electronics"],
+  ["phone","electronics"],["charger","electronics"],["adapter","electronics"],
+  ["camera","electronics"],["laptop","electronics"],["tablet","electronics"],
+  ["ipad","electronics"],["kindle","electronics"],["headphones","electronics"],
+  ["earphones","electronics"],["earbuds","electronics"],
+  ["smartwatch","electronics"],["cables","electronics"],["tripod","electronics"],
+  ["paracetamol","health"],["ibuprofen","health"],["antihistamine","health"],
+  ["insect repellent","health"],["mosquito","health"],
+  ["first aid","health"],["plasters","health"],["bandage","health"],
+  ["prescription","health"],["inhaler","health"],["epipen","health"],
+  ["medication","health"],["medicine","health"],["tablets","health"],
+  ["vitamins","health"],["antiseptic","health"],["eye drops","health"],
+  ["travel money","money"],["foreign currency","money"],["credit card","money"],
+  ["debit card","money"],["cash","money"],["wallet","money"],
+  ["euros","money"],["dollars","money"],["pounds","money"],
+  ["currency","money"],["forex","money"],
+  ["guidebook","entertainment"],["travel guide","entertainment"],
+  ["playing cards","entertainment"],["board game","entertainment"],
+  ["magazine","entertainment"],["journal","entertainment"],
+  ["notebook","entertainment"],["puzzle","entertainment"],["games","entertainment"],
+  ["playlist","entertainment"],["book","entertainment"],
+];
+
+// ── CONFIG MAP ───────────────────────────────────────────────
+var LIST_CONFIG = {
+  grocery: { cats: GROCERY_CATS, kw: GROCERY_KW, key: "fl4_grocery" },
+  todo:    { cats: TODO_CATS,    kw: TODO_KW,    key: "fl4_todo"    },
+  travel:  { cats: TRAVEL_CATS,  kw: TRAVEL_KW,  key: "fl4_travel"  },
+};
+
+// ── STATE ────────────────────────────────────────────────────
+var currentList = "grocery";
+var currentCatId = null;
+var listData = { grocery: null, todo: null, travel: null }; // null = not yet loaded
+
+function storeGet(k) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
+function storeSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} }
+
+function loadListData(lt) {
+  if (listData[lt]) return listData[lt];
+  var cfg = LIST_CONFIG[lt];
+  var raw = storeGet(cfg.key);
+  var d = { items: [], hist: [] };
+  if (raw && typeof raw === "object") {
+    d.items = Array.isArray(raw.items) ? raw.items.filter(function(x){ return x && typeof x === "object"; }) : [];
+    d.hist  = Array.isArray(raw.hist)  ? raw.hist.filter(function(x) { return x && typeof x === "object"; }) : [];
+  }
+  listData[lt] = d;
+  return d;
+}
+
+function saveCurrentList() {
+  var d = listData[currentList];
+  if (d) storeSet(LIST_CONFIG[currentList].key, d);
+}
+
+function getItems() { return loadListData(currentList).items; }
+function getHist()  { return loadListData(currentList).hist;  }
+function getCats()  { return LIST_CONFIG[currentList].cats; }
+
+function detectCat(name) {
+  if (!name) return "other";
+  var low = name.toLowerCase();
+  var kw = LIST_CONFIG[currentList].kw;
+  for (var i = 0; i < kw.length; i++) {
+    if (low.indexOf(kw[i][0]) !== -1) return kw[i][1];
+  }
+  return "other";
+}
+
+function getCat(id) {
+  var cats = getCats();
+  for (var i = 0; i < cats.length; i++) { if (cats[i].id === id) return cats[i]; }
+  return cats[cats.length - 1];
+}
+
+// ── ELEMENTS ─────────────────────────────────────────────────
+var elInput    = document.getElementById("itemInput");
+var elAc       = document.getElementById("ac");
+var elCatRow   = document.getElementById("catRow");
+var elCatChip  = document.getElementById("catChip");
+var elCatHint  = document.getElementById("catHint");
+var elListC    = document.getElementById("listContent");
+var elHistoryC = document.getElementById("historyContent");
+var elHdrBadge = document.getElementById("hdrBadge");
+var elListBadge= document.getElementById("listBadge");
+var elClearBtn = document.getElementById("clearBtn");
+var elToast    = document.getElementById("toast");
+var toastTimer = null;
+
+// ── LIST TYPE SWITCHER ───────────────────────────────────────
+function applyListTheme() {
+  var lt = LIST_TYPES[currentList];
+  var color = LIST_CONFIG[currentList].cats ? lt.color : lt.color;
+  document.documentElement.style.setProperty("--accent", lt.color);
+  document.getElementById("appTitle").textContent = lt.name;
+  elInput.placeholder = lt.placeholder;
+  document.getElementById("themeColor").setAttribute("content", lt.color);
+  var btns = document.querySelectorAll(".type-btn");
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle("active", btns[i].dataset.lt === currentList);
+  }
+  var tabs = document.querySelectorAll(".tab");
+  for (var j = 0; j < tabs.length; j++) {
+    tabs[j].classList.remove("active");
+  }
+  document.getElementById("tabList").classList.add("active");
+}
+
+document.getElementById("typeBar").addEventListener("click", function(e) {
+  var btn = e.target.closest(".type-btn");
+  if (!btn) return;
+  var lt = btn.dataset.lt;
+  if (lt === currentList) return;
+  saveCurrentList();
+  currentList = lt;
+  currentCatId = null;
+  resetInput();
+  loadListData(lt);
+  applyListTheme();
+  switchTab("list");
+  renderList();
+});
+
+// ── TABS ─────────────────────────────────────────────────────
+document.getElementById("tabList").addEventListener("click",    function(){ switchTab("list"); });
+document.getElementById("tabHistory").addEventListener("click", function(){ switchTab("history"); });
+
+function switchTab(t) {
+  var isList = t === "list";
+  document.getElementById("listPanel").style.display    = isList ? "block" : "none";
+  document.getElementById("historyPanel").style.display = isList ? "none"  : "block";
+  document.getElementById("tabList").className    = "tab" + (isList ? " active" : "");
+  document.getElementById("tabHistory").className = "tab" + (isList ? "" : " active");
+  if (!isList) renderHistory();
+}
+
+// ── INPUT ────────────────────────────────────────────────────
+elInput.addEventListener("input", function() {
+  var val = elInput.value.trim();
+  if (!val) { hideCatRow(); hideAC(); currentCatId = null; return; }
+  if (!currentCatId) currentCatId = detectCat(val);
+  showCatRow(currentCatId, !currentCatId);
+  // Re-detect if not manually overridden
+  var detected = detectCat(val);
+  if (!currentCatId) { currentCatId = detected; }
+  showCatRow(currentCatId, true);
+  showAC(val);
+});
+
+elInput.addEventListener("keydown", function(e){ if (e.key === "Enter") doAdd(); });
+document.addEventListener("click", function(e){ if (!document.querySelector(".input-card").contains(e.target)) hideAC(); });
+elCatChip.addEventListener("click", openPicker);
+
+function showCatRow(catId, isAuto) {
+  var c = getCat(catId);
+  elCatChip.textContent = c.emoji + " " + c.name;
+  elCatChip.style.background = c.bg;
+  elCatChip.style.color = c.fg;
+  elCatHint.style.display = isAuto ? "inline" : "none";
+  elCatRow.style.display = "flex";
+}
+function hideCatRow() { elCatRow.style.display = "none"; }
+function hideAC() { elAc.style.display = "none"; elAc.innerHTML = ""; }
+
+function showAC(query) {
+  var q = query.toLowerCase();
+  var hist = getHist();
+  var matches = [];
+  for (var i = 0; i < hist.length && matches.length < 7; i++) {
+    if (hist[i].name.toLowerCase().indexOf(q) !== -1 && hist[i].name.toLowerCase() !== q) matches.push(hist[i]);
+  }
+  if (!matches.length) { hideAC(); return; }
+  var html = "";
+  for (var j = 0; j < matches.length; j++) {
+    var h = matches[j], c = getCat(h.catId || "other");
+    var idx = h.name.toLowerCase().indexOf(q);
+    var hl = idx >= 0
+      ? esc(h.name.slice(0,idx)) + "<b>" + esc(h.name.slice(idx,idx+query.length)) + "</b>" + esc(h.name.slice(idx+query.length))
+      : esc(h.name);
+    html += "<div class='ac-item' data-name='" + esc(h.name) + "' data-cat='" + c.id + "'>" +
+      "<span class='ac-name'>" + hl + "</span>" +
+      "<span class='ac-badge' style='background:" + c.bg + ";color:" + c.fg + "'>" + c.emoji + " " + c.name + "</span>" +
+      "<span class='ac-times'>" + (h.count||1) + "x</span></div>";
+  }
+  elAc.innerHTML = html;
+  elAc.style.display = "block";
+  var rows = elAc.querySelectorAll(".ac-item");
+  for (var k = 0; k < rows.length; k++) {
+    rows[k].addEventListener("click", (function(row){ return function(){
+      elInput.value = row.dataset.name;
+      currentCatId = row.dataset.cat;
+      showCatRow(currentCatId, false);
+      hideAC(); elInput.focus();
+    };})(rows[k]));
+  }
+}
+
+// ── ADD ──────────────────────────────────────────────────────
+document.getElementById("addBtn").addEventListener("click", doAdd);
+
+function doAdd() {
+  var name = elInput.value.trim();
+  if (!name) { elInput.focus(); return; }
+  var catId = currentCatId || detectCat(name);
+  var items = getItems();
+  for (var i = 0; i < items.length; i++) {
+    if (!items[i].done && items[i].name.toLowerCase() === name.toLowerCase()) {
+      toast("Already in your list!"); resetInput(); return;
+    }
+  }
+  listData[currentList].items.unshift({ id: Date.now(), name: name, catId: catId, done: false });
+  addToHist(name, catId);
+  saveCurrentList();
+  resetInput();
+  renderList();
+  switchTab("list");
+  toast("Added: " + name);
+}
+
+function resetInput() {
+  elInput.value = ""; hideCatRow(); hideAC(); currentCatId = null;
+}
+
+function addToHist(name, catId) {
+  var hist = getHist();
+  var found = null;
+  for (var i = 0; i < hist.length; i++) {
+    if (hist[i].name.toLowerCase() === name.toLowerCase()) { found = hist[i]; break; }
+  }
+  if (found) { found.count = (found.count||1)+1; found.catId = catId; found.lastUsed = Date.now(); }
+  else { hist.unshift({ name: name, catId: catId, count: 1, lastUsed: Date.now() }); }
+  if (hist.length > 150) listData[currentList].hist = hist.slice(0, 150);
+  listData[currentList].hist.sort(function(a,b){ return (b.count - a.count) || (b.lastUsed - a.lastUsed); });
+}
+
+// ── RENDER LIST ──────────────────────────────────────────────
+function renderList() {
+  var items = getItems();
+  var lt = LIST_TYPES[currentList];
+  var active = [], done = [];
+  for (var i = 0; i < items.length; i++) { (items[i].done ? done : active).push(items[i]); }
+
+  if (active.length) {
+    elHdrBadge.textContent = active.length + " item" + (active.length !== 1 ? "s" : "");
+    elHdrBadge.style.display = "block";
+  } else { elHdrBadge.style.display = "none"; }
+  elListBadge.textContent = active.length || "";
+  elClearBtn.style.display = done.length ? "block" : "none";
+
+  if (!items.length) {
+    elListC.innerHTML = "<div class='empty'><div class='empty-ico'>" + lt.emptyIco + "</div><div class='empty-title'>" + lt.emptyTitle + "</div><div class='empty-sub'>" + lt.emptySub + "</div></div>";
+    return;
+  }
+
+  var groups = {};
+  for (var i = 0; i < active.length; i++) {
+    var cid = active[i].catId || "other";
+    if (!groups[cid]) groups[cid] = [];
+    groups[cid].push(active[i]);
+  }
+
+  var html = "";
+  var cats = getCats();
+  for (var ci = 0; ci < cats.length; ci++) {
+    var c = cats[ci], gi = groups[c.id];
+    if (!gi) continue;
+    html += "<div class='sec-hdr'><span>" + c.emoji + "&ensp;<span class='sec-name'>" + c.name + "</span></span><div class='sec-line'></div><span class='sec-count'>" + gi.length + "</span></div>";
+    for (var ii = 0; ii < gi.length; ii++) html += cardHTML(gi[ii], c);
+  }
+  if (done.length) {
+    html += "<div class='sec-hdr' style='margin-top:22px'><span>&#10003;&ensp;<span class='sec-name' style='color:#7A8772'>Done</span></span><div class='sec-line'></div><span class='sec-count'>" + done.length + "</span></div>";
+    for (var di = 0; di < done.length; di++) html += cardHTML(done[di], getCat(done[di].catId || "other"));
+  }
+  elListC.innerHTML = html;
+
+  var cards = elListC.querySelectorAll(".item-card");
+  for (var ki = 0; ki < cards.length; ki++) {
+    (function(card){ var id = +card.dataset.id;
+      card.addEventListener("click", function(e){ if (!e.target.closest(".del-btn")) toggleItem(id); });
+      card.querySelector(".del-btn").addEventListener("click", function(e){ e.stopPropagation(); removeItem(id); });
+    })(cards[ki]);
+  }
+}
+
+function cardHTML(item, c) {
+  return "<div class='item-card" + (item.done?" done":"") + "' data-id='" + item.id + "' style='border-left-color:" + c.fg + "33'>" +
+    "<div class='chk'>" + (item.done?"&#10003;":"") + "</div>" +
+    "<span class='item-name'>" + esc(item.name) + "</span>" +
+    "<span class='item-pill' style='background:" + c.bg + ";color:" + c.fg + "'>" + c.emoji + " " + c.name + "</span>" +
+    "<button class='del-btn'>&#x2715;</button></div>";
+}
+
+function toggleItem(id) {
+  var items = getItems();
+  for (var i = 0; i < items.length; i++) { if (items[i].id === id) { items[i].done = !items[i].done; break; } }
+  saveCurrentList(); renderList();
+}
+function removeItem(id) {
+  listData[currentList].items = getItems().filter(function(x){ return x.id !== id; });
+  saveCurrentList(); renderList();
+}
+elClearBtn.addEventListener("click", function(){
+  listData[currentList].items = getItems().filter(function(x){ return !x.done; });
+  saveCurrentList(); renderList(); toast("Cleared completed items");
+});
+
+// ── RENDER HISTORY ───────────────────────────────────────────
+function renderHistory() {
+  var q = (document.getElementById("histSearch").value || "").trim().toLowerCase();
+  var hist = getHist();
+  var filtered = hist.filter(function(h){ return !q || h.name.toLowerCase().indexOf(q) !== -1; }).slice(0, 60);
+  if (!filtered.length) {
+    elHistoryC.innerHTML = "<div class='empty'><div class='empty-ico'>🕐</div><div class='empty-title'>" + (q?"No matches":"No history yet") + "</div><div class='empty-sub'>" + (q?"Try a different search":"Items you add will appear here for quick re-adding") + "</div></div>";
+    return;
+  }
+  var items = getItems();
+  var html = "";
+  for (var i = 0; i < filtered.length; i++) {
+    var h = filtered[i], c = getCat(h.catId || "other");
+    var inList = false;
+    for (var j = 0; j < items.length; j++) { if (!items[j].done && items[j].name.toLowerCase() === h.name.toLowerCase()) { inList = true; break; } }
+    html += "<div class='hist-item' data-name='" + esc(h.name) + "' data-cat='" + c.id + "'>" +
+      "<span class='hist-emoji'>" + c.emoji + "</span>" +
+      "<div class='hist-body'><div class='hist-name'>" + esc(h.name) + "</div>" +
+      "<div class='hist-meta'><span class='hist-cat' style='background:" + c.bg + ";color:" + c.fg + "'>" + c.name + "</span>" +
+      "<span class='hist-count'>Added " + (h.count||1) + "x</span></div></div>" +
+      "<button class='hist-add" + (inList?" in-list":"") + "'>" + (inList?"&#10003;":"+") + "</button></div>";
+  }
+  elHistoryC.innerHTML = html;
+  var rows = elHistoryC.querySelectorAll(".hist-item");
+  for (var ri = 0; ri < rows.length; ri++) {
+    (function(row){ var nm = row.dataset.name, cat = row.dataset.cat;
+      row.querySelector(".hist-add").addEventListener("click", function(e){ e.stopPropagation(); addFromHistory(nm, cat); });
+      row.addEventListener("click", function(e){
+        if (e.target.closest(".hist-add")) return;
+        elInput.value = nm; currentCatId = cat; showCatRow(cat, false); switchTab("list"); elInput.focus();
+      });
+    })(rows[ri]);
+  }
+}
+document.getElementById("histSearch").addEventListener("input", renderHistory);
+
+function addFromHistory(name, catId) {
+  var items = getItems();
+  for (var i = 0; i < items.length; i++) {
+    if (!items[i].done && items[i].name.toLowerCase() === name.toLowerCase()) { toast("Already in your list!"); return; }
+  }
+  listData[currentList].items.unshift({ id: Date.now(), name: name, catId: catId, done: false });
+  addToHist(name, catId);
+  saveCurrentList(); renderList(); renderHistory(); toast("Added: " + name);
+}
+
+// ── CATEGORY PICKER ──────────────────────────────────────────
+function openPicker() {
+  var catId = currentCatId || detectCat(elInput.value);
+  var cats = getCats();
+  var html = "";
+  for (var i = 0; i < cats.length; i++) {
+    var c = cats[i];
+    html += "<div class='picker-opt" + (catId===c.id?" sel":"") + "' style='background:" + c.bg + ";color:" + c.fg + "' data-id='" + c.id + "'><span style='font-size:20px'>" + c.emoji + "</span><span>" + c.name + "</span></div>";
+  }
+  document.getElementById("pickerGrid").innerHTML = html;
+  document.getElementById("modalOverlay").classList.add("open");
+  var opts = document.querySelectorAll(".picker-opt");
+  for (var j = 0; j < opts.length; j++) {
+    opts[j].addEventListener("click", (function(opt){ return function(){
+      currentCatId = opt.dataset.id; showCatRow(currentCatId, false);
+      document.getElementById("modalOverlay").classList.remove("open");
+    };})(opts[j]));
+  }
+}
+document.getElementById("modalOverlay").addEventListener("click", function(e){ if (e.target===this) this.classList.remove("open"); });
+
+// ── TOAST ─────────────────────────────────────────────────────
+function toast(msg) {
+  elToast.textContent = msg; elToast.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ elToast.classList.remove("show"); }, 2200);
+}
+
+// ── HELPERS ──────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+
+// ── SERVICE WORKER ───────────────────────────────────────────
+if ("serviceWorker" in navigator) { navigator.serviceWorker.register("./sw.js").catch(function(){}); }
+
+// ── INIT ─────────────────────────────────────────────────────
+loadListData("grocery");
+applyListTheme();
+switchTab("list");
+renderList();
+</script>
+</body>
+</html>
