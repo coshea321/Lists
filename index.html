@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <meta name="theme-color" content="#1A3D1E" id="themeColor">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -161,8 +164,10 @@ header{background:var(--accent);padding:14px 18px 10px;display:flex;align-items:
   </div>
 </div>
 <div id="toast"></div>
+<div style="text-align:center;padding:8px;font-size:10px;color:#aaa;position:fixed;bottom:0;left:0;right:0;pointer-events:none">v3</div>
 
 <script>
+// FreshList v3 - multi-list with auto-category
 // ── LIST TYPES ───────────────────────────────────────────────
 var LIST_TYPES = {
   grocery: { name:"🛒 Grocery",  placeholder:"Add an item…",   color:"#2D6B35", emptyIco:"🛒", emptyTitle:"Your list is empty",  emptySub:"Start typing — categories detect automatically." },
