@@ -414,6 +414,7 @@ var LIST_CONFIG = {
 // ── STATE ────────────────────────────────────────────────────
 var currentList = "grocery";
 var currentCatId = null;
+var manualCatId = null;
 var listData = { grocery: null, todo: null, travel: null }; // null = not yet loaded
 
 function storeGet(k) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch(e) { return null; } }
@@ -497,7 +498,7 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
   if (lt === currentList) return;
   saveCurrentList();
   currentList = lt;
-  currentCatId = null;
+  currentCatId = null; manualCatId = null;
   resetInput();
   loadListData(lt);
   applyListTheme();
@@ -521,11 +522,10 @@ function switchTab(t) {
 // ── INPUT ────────────────────────────────────────────────────
 elInput.addEventListener("input", function() {
   var val = elInput.value.trim();
-  if (!val) { hideCatRow(); hideAC(); currentCatId = null; return; }
-  // Auto-detect unless user manually picked a category
-  var autoDetected = !currentCatId;
-  if (!currentCatId) { currentCatId = detectCat(val); }
-  showCatRow(currentCatId, autoDetected);
+  if (!val) { hideCatRow(); hideAC(); currentCatId = null; manualCatId = null; return; }
+  // Always re-detect unless user manually picked from picker
+  currentCatId = manualCatId || detectCat(val);
+  showCatRow(currentCatId, !manualCatId);
   showAC(val);
 });
 
@@ -570,7 +570,7 @@ function showAC(query) {
   for (var k = 0; k < rows.length; k++) {
     rows[k].addEventListener("click", (function(row){ return function(){
       elInput.value = row.dataset.name;
-      currentCatId = row.dataset.cat;
+      manualCatId = row.dataset.cat; currentCatId = manualCatId;
       showCatRow(currentCatId, false);
       hideAC(); elInput.focus();
     };})(rows[k]));
@@ -600,7 +600,7 @@ function doAdd() {
 }
 
 function resetInput() {
-  elInput.value = ""; hideCatRow(); hideAC(); currentCatId = null;
+  elInput.value = ""; hideCatRow(); hideAC(); currentCatId = null; manualCatId = null;
 }
 
 function addToHist(name, catId) {
@@ -746,7 +746,7 @@ function openPicker() {
   var opts = document.querySelectorAll(".picker-opt");
   for (var j = 0; j < opts.length; j++) {
     opts[j].addEventListener("click", (function(opt){ return function(){
-      currentCatId = opt.dataset.id; showCatRow(currentCatId, false);
+      manualCatId = opt.dataset.id; currentCatId = manualCatId; showCatRow(currentCatId, false);
       document.getElementById("modalOverlay").classList.remove("open");
     };})(opts[j]));
   }
