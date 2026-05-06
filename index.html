@@ -300,7 +300,7 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 </div>
 
 <div id="toast"></div>
-<div class="ver">v8</div>
+<div class="ver">v9</div>
 
 <script>
 // ============================================================
@@ -634,6 +634,8 @@ var fbUrl = storeGet("fl4_fbUrl") || "";
 var syncRoom = storeGet("fl4_room") || "";
 var syncES = null;
 var syncPaused = false;
+var lastPushTs = 0;       // timestamp of our last push to Firebase
+var SSE_GRACE_MS = 3000;  // ignore SSE events for 3s after a local push
 // Per-section sync prefs: default grocery/todo/travel ON, notes OFF
 var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false };
 function saveSyncPrefs() { storeSet("fl4_syncPrefs", syncPrefs); }
@@ -1162,6 +1164,7 @@ function pushSync() {
     if (d) data[lt] = { items: d.items, hist: d.hist, notes: notes };
   });
   if (isSynced("notes")) data["global_notes"] = storeGet("fl4_notes_global") || [];
+  lastPushTs = Date.now();
   fetch(fbRoomUrl(), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} })
     .catch(function(){});
 }
@@ -1171,6 +1174,7 @@ function fetchSync(cb) {
   fetch(fbRoomUrl()).then(function(r){ return r.json(); }).then(function(data) {
     if (data && typeof data === "object") {
       syncPaused = true;
+      lastPushTs = 0; // allow incoming data on manual join/fetch
       ["grocery","todo","travel","personal"].forEach(function(lt) {
         if (!isSynced(lt)) return;  // skip unsynced sections
         if (data[lt] && typeof data[lt]==="object") {
@@ -1202,17 +1206,31 @@ function startListening() {
         var payload = JSON.parse(e.data);
         var data = payload.data;
         if (!data || typeof data !== "object") return;
+        // Ignore SSE events that arrive shortly after our own push
+        // (they carry stale data that would overwrite local changes)
+        if (Date.now() - lastPushTs < SSE_GRACE_MS) return;
         syncPaused = true;
         ["grocery","todo","travel","personal"].forEach(function(lt) {
+          if (!isSynced(lt)) return;
           if (data[lt] && typeof data[lt]==="object") {
             var d = data[lt];
+            // Merge: keep any local items not in incoming data (added during grace window)
+            var incoming = Array.isArray(d.items) ? d.items.filter(Boolean) : [];
+            var local = listData[lt] ? (listData[lt].items || []) : [];
+            var incomingIds = {};
+            incoming.forEach(function(x){ incomingIds[x.id] = true; });
+            var localOnly = local.filter(function(x){ return !incomingIds[x.id]; });
             listData[lt] = {
-              items: Array.isArray(d.items) ? d.items.filter(Boolean) : [],
-              hist:  Array.isArray(d.hist)  ? d.hist.filter(Boolean)  : [],
+              items: localOnly.concat(incoming),
+              hist:  Array.isArray(d.hist) ? d.hist.filter(Boolean) : [],
             };
             storeSet(LIST_CONFIG[lt].key, listData[lt]);
+            if (Array.isArray(d.notes)) storeSet("fl4_notes_" + lt, d.notes.filter(Boolean));
           }
         });
+        if (isSynced("notes") && Array.isArray(data["global_notes"])) {
+          storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
+        }
         syncPaused = false;
         renderList();
       } catch(err){}
