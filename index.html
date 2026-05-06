@@ -149,7 +149,8 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 
 <div class="type-bar" id="typeBar">
   <button class="type-btn active" data-lt="grocery">&#x1F6D2; Grocery</button>
-  <button class="type-btn" data-lt="todo">&#x2705; To-Do</button>
+  <button class="type-btn" data-lt="todo">&#x2705; General</button>
+  <button class="type-btn" data-lt="personal">&#x1F464; Personal</button>
   <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
   <button class="type-btn" data-lt="notes">&#x1F4DD; Notes</button>
 </div>
@@ -265,12 +266,16 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
           <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="grocery" checked><span class="toggle-slider"></span></label>
         </div>
         <div class="sync-toggle-row" data-key="todo">
-          <span class="sync-toggle-label">&#x2705; To-Do</span>
+          <span class="sync-toggle-label">&#x2705; General</span>
           <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="todo" checked><span class="toggle-slider"></span></label>
         </div>
         <div class="sync-toggle-row" data-key="travel">
           <span class="sync-toggle-label">&#x2708;&#xFE0F; Travel</span>
           <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="travel" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="sync-toggle-row" data-key="personal">
+          <span class="sync-toggle-label">&#x1F464; Personal</span>
+          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="personal"><span class="toggle-slider"></span></label>
         </div>
         <div class="sync-toggle-row" data-key="notes">
           <span class="sync-toggle-label">&#x1F4DD; Notes</span>
@@ -295,7 +300,7 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 </div>
 
 <div id="toast"></div>
-<div class="ver">v7</div>
+<div class="ver">v8</div>
 
 <script>
 // ============================================================
@@ -303,7 +308,8 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 // ============================================================
 var LIST_TYPES = {
   grocery:{ name:"&#x1F6D2; Grocery", placeholder:"Add an item...", color:"#2D6B35", emptyIco:"&#x1F6D2;", emptyTitle:"Your list is empty",  emptySub:"Start typing - categories detect automatically." },
-  todo:   { name:"&#x2705; To-Do",    placeholder:"Add a task...",   color:"#5A3AA0", emptyIco:"&#x2705;", emptyTitle:"No tasks yet",         emptySub:"Add a task - it'll be categorised automatically." },
+  todo:   { name:"&#x2705; General",  placeholder:"Add a task...",   color:"#5A3AA0", emptyIco:"&#x2705;", emptyTitle:"No tasks yet",         emptySub:"Add a task - it'll be categorised automatically." },
+  personal:{ name:"&#x1F464; Personal", placeholder:"Add a task...",   color:"#A0205A", emptyIco:"&#x1F464;", emptyTitle:"No personal tasks yet", emptySub:"Add a personal task - it'll be categorised automatically." },
   travel: { name:"&#x2708; Travel",   placeholder:"Add to pack...",  color:"#1A5A8A", emptyIco:"&#x2708;", emptyTitle:"Nothing packed yet",  emptySub:"Add items to pack - categories detect automatically." },
   notes:  { name:"&#x1F4DD; Notes",   placeholder:"",                color:"#A05A10", emptyIco:"&#x1F4DD;", emptyTitle:"No notes yet",        emptySub:"" },
 };
@@ -540,7 +546,8 @@ var TRAVEL_KW = [
 var LIST_CONFIG = {
   grocery:{ cats:GROCERY_CATS, kw:GROCERY_KW, key:"fl4_grocery" },
   todo:   { cats:TODO_CATS,    kw:TODO_KW,    key:"fl4_todo"    },
-  travel: { cats:TRAVEL_CATS,  kw:TRAVEL_KW,  key:"fl4_travel"  },
+  travel:   { cats:TRAVEL_CATS, kw:TRAVEL_KW,  key:"fl4_travel"   },
+  personal: { cats:TODO_CATS,   kw:TODO_KW,    key:"fl4_personal"  },
 };
 
 // ============================================================
@@ -620,7 +627,7 @@ var currentList = "grocery";
 var manualCatId = null;
 var currentCatId = null;
 var editItemId = null;   // item whose category we're editing (null = adding new)
-var listData = { grocery:null, todo:null, travel:null };
+var listData = { grocery:null, todo:null, travel:null, personal:null };
 
 // Sync state
 var fbUrl = storeGet("fl4_fbUrl") || "";
@@ -628,7 +635,7 @@ var syncRoom = storeGet("fl4_room") || "";
 var syncES = null;
 var syncPaused = false;
 // Per-section sync prefs: default grocery/todo/travel ON, notes OFF
-var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, notes:false };
+var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, personal:false, notes:false };
 function saveSyncPrefs() { storeSet("fl4_syncPrefs", syncPrefs); }
 function isSynced(key) { return !!(syncPrefs[key]); }
 
@@ -1004,7 +1011,7 @@ document.getElementById("settingsOverlay").addEventListener("click", function(e)
 function renderCustomCatsList() {
   var el = document.getElementById("customCatsList");
   var allCustom = {}, hasAny = false;
-  ["grocery","todo","travel"].forEach(function(lt) {
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
     var cc = getCustomCats(lt);
     if (cc.length) { allCustom[lt] = cc; hasAny = true; }
   });
@@ -1013,7 +1020,7 @@ function renderCustomCatsList() {
     return;
   }
   var html = "";
-  ["grocery","todo","travel"].forEach(function(lt) {
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
     var cc = allCustom[lt]; if (!cc) return;
     html += "<div style='font-size:12px;font-weight:700;color:#7A8772;margin-bottom:6px;margin-top:12px;text-transform:uppercase'>"+lt+"</div>";
     cc.forEach(function(c, idx) {
@@ -1040,7 +1047,7 @@ function renderCustomCatsList() {
 
 document.getElementById("clearAllBtn").addEventListener("click", function() {
   if (!confirm("Clear ALL lists and history? This cannot be undone.")) return;
-  ["grocery","todo","travel"].forEach(function(lt) {
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
     storeSet(LIST_CONFIG[lt].key, {items:[],hist:[]});
     listData[lt] = null;
   });
@@ -1148,7 +1155,7 @@ function fbRoomUrl() {
 function pushSync() {
   if (!fbUrl || !syncRoom || syncPaused) return;
   var data = {};
-  ["grocery","todo","travel"].forEach(function(lt) {
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
     if (!isSynced(lt)) return;
     var d = listData[lt];
     var notes = storeGet("fl4_notes_" + lt) || [];
@@ -1164,7 +1171,7 @@ function fetchSync(cb) {
   fetch(fbRoomUrl()).then(function(r){ return r.json(); }).then(function(data) {
     if (data && typeof data === "object") {
       syncPaused = true;
-      ["grocery","todo","travel"].forEach(function(lt) {
+      ["grocery","todo","travel","personal"].forEach(function(lt) {
         if (!isSynced(lt)) return;  // skip unsynced sections
         if (data[lt] && typeof data[lt]==="object") {
           var d = data[lt];
@@ -1196,7 +1203,7 @@ function startListening() {
         var data = payload.data;
         if (!data || typeof data !== "object") return;
         syncPaused = true;
-        ["grocery","todo","travel"].forEach(function(lt) {
+        ["grocery","todo","travel","personal"].forEach(function(lt) {
           if (data[lt] && typeof data[lt]==="object") {
             var d = data[lt];
             listData[lt] = {
