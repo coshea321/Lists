@@ -295,12 +295,20 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
     <div style="font-size:14px;color:#7A8772;text-align:center;margin-bottom:18px">Manage your custom categories</div>
     <div id="customCatsList"></div>
     <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
+    <div class="sync-section-title" style="margin-bottom:8px">Import / Export</div>
+    <button class="sync-btn" id="exportBtn">&#x2B07;&#xFE0F; Export all data</button>
+    <label class="sync-btn outline" id="importLabel" style="text-align:center;cursor:pointer;display:block;margin-bottom:6px">
+      &#x2B06;&#xFE0F; Import data
+      <input type="file" id="importFile" accept=".json" style="display:none">
+    </label>
+    <div id="importStatus" style="font-size:13px;padding:8px 12px;border-radius:8px;display:none;margin-bottom:10px"></div>
+    <div style="height:1px;background:#E8E4DC;margin:16px 0"></div>
     <button class="sync-btn outline" id="clearAllBtn" style="border-color:#C03030;color:#C03030">Clear all data</button>
   </div>
 </div>
 
 <div id="toast"></div>
-<div class="ver">v9</div>
+<div class="ver">v10</div>
 
 <script>
 // ============================================================
@@ -1370,6 +1378,140 @@ function renderNotesFull() { renderNotesIn("notesFullContent", "global",    rend
 
 function escNl(s) {
   return esc(s).replace(/\n/g, "<br>");
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+document.getElementById("exportBtn").addEventListener("click", function() {
+  // Ensure all lists are loaded before export
+  ["grocery","todo","travel","personal"].forEach(function(lt) { loadListData(lt); });
+
+  var exportData = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    lists: {},
+    notes: {},
+    customCats: {}
+  };
+
+  ["grocery","todo","travel","personal"].forEach(function(lt) {
+    var d = listData[lt] || { items:[], hist:[] };
+    exportData.lists[lt] = { items: d.items, hist: d.hist };
+    exportData.notes[lt] = getNotes(lt);
+    exportData.customCats[lt] = getCustomCats(lt);
+  });
+  exportData.notes["global"] = getNotes("global");
+
+  var json = JSON.stringify(exportData, null, 2);
+  var blob = new Blob([json], { type:"application/json" });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement("a");
+  var d    = new Date();
+  var pad  = function(x){ return x < 10 ? "0"+x : ""+x; };
+  var dateStr = d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+  a.href     = url;
+  a.download = "freshlist-backup-" + dateStr + ".json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast("Exported!");
+});
+
+// ============================================================
+// IMPORT
+// ============================================================
+document.getElementById("importFile").addEventListener("change", function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  var statusEl = document.getElementById("importStatus");
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var data = JSON.parse(ev.target.result);
+      if (!data || !data.lists) throw new Error("Invalid file format");
+
+      var imported = { lists:0, notes:0, cats:0 };
+
+      ["grocery","todo","travel","personal"].forEach(function(lt) {
+        if (data.lists[lt] && typeof data.lists[lt] === "object") {
+          var d = data.lists[lt];
+          var items = Array.isArray(d.items) ? d.items.filter(Boolean) : [];
+          var hist  = Array.isArray(d.hist)  ? d.hist.filter(Boolean)  : [];
+
+          // Merge with existing: keep local items, add imported ones not already present
+          loadListData(lt);
+          var existing = listData[lt] || { items:[], hist:[] };
+          var existingIds = {};
+          existing.items.forEach(function(x){ existingIds[x.id] = true; });
+          var newItems = items.filter(function(x){ return !existingIds[x.id]; });
+          listData[lt] = {
+            items: newItems.concat(existing.items),
+            hist:  mergeHist(existing.hist, hist)
+          };
+          storeSet(LIST_CONFIG[lt].key, listData[lt]);
+          imported.lists += newItems.length;
+        }
+
+        if (data.notes && Array.isArray(data.notes[lt])) {
+          var existingNotes = getNotes(lt);
+          var existingNoteIds = {};
+          existingNotes.forEach(function(n){ existingNoteIds[n.id] = true; });
+          var newNotes = data.notes[lt].filter(function(n){ return n && !existingNoteIds[n.id]; });
+          saveNotes(newNotes.concat(existingNotes), lt);
+          imported.notes += newNotes.length;
+        }
+
+        if (data.customCats && Array.isArray(data.customCats[lt])) {
+          var existingCats = getCustomCats(lt);
+          var existingCatIds = {};
+          existingCats.forEach(function(c){ existingCatIds[c.id] = true; });
+          var newCats = data.customCats[lt].filter(function(c){ return c && !existingCatIds[c.id]; });
+          saveCustomCats(lt, existingCats.concat(newCats));
+          imported.cats += newCats.length;
+        }
+      });
+
+      // Global notes
+      if (data.notes && Array.isArray(data.notes["global"])) {
+        var existingGlobal = getNotes("global");
+        var existingGlobalIds = {};
+        existingGlobal.forEach(function(n){ existingGlobalIds[n.id] = true; });
+        var newGlobal = data.notes["global"].filter(function(n){ return n && !existingGlobalIds[n.id]; });
+        saveNotes(newGlobal.concat(existingGlobal), "global");
+        imported.notes += newGlobal.length;
+      }
+
+      renderList();
+      var msg = "Imported: " + imported.lists + " items";
+      if (imported.notes)  msg += ", " + imported.notes + " notes";
+      if (imported.cats)   msg += ", " + imported.cats + " categories";
+      statusEl.style.background = "#D6EDDA"; statusEl.style.color = "#1A4A1E";
+      statusEl.textContent = "✓ " + msg;
+      statusEl.style.display = "block";
+      toast(msg);
+
+    } catch(err) {
+      statusEl.style.background = "#FDDEDD"; statusEl.style.color = "#7A1A1A";
+      statusEl.textContent = "✕ Import failed: " + err.message;
+      statusEl.style.display = "block";
+    }
+    // Reset file input so same file can be re-imported if needed
+    e.target.value = "";
+  };
+  reader.readAsText(file);
+});
+
+function mergeHist(existing, incoming) {
+  var merged = existing.slice();
+  var existingNames = {};
+  existing.forEach(function(h){ existingNames[h.name.toLowerCase()] = true; });
+  incoming.forEach(function(h){
+    if (h && !existingNames[h.name.toLowerCase()]) merged.push(h);
+  });
+  merged.sort(function(a,b){ return (b.count - a.count)||(b.lastUsed - a.lastUsed); });
+  return merged.slice(0, 150);
 }
 
 // ============================================================
