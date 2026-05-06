@@ -115,8 +115,26 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .sync-indicator{width:8px;height:8px;border-radius:50%;background:#ccc;display:inline-block;margin-right:6px}
 .sync-indicator.live{background:#2D9B4A;animation:pulse 1.5s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.note-card{background:#fff;border-radius:9px;padding:12px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(20,50,20,.07)}
+.note-text{font-size:15px;line-height:1.5;color:#1C2018;margin-bottom:4px;white-space:pre-wrap;word-break:break-word}
+.note-meta{font-size:11px;color:#7A8772}
+.note-textarea{width:100%;border:2px solid var(--accent);border-radius:8px;padding:9px 11px;font-family:inherit;font-size:15px;color:#1C2018;resize:vertical;outline:none;line-height:1.5}
+.note-edit-btn{padding:5px 12px;border:1.5px solid #D8D0C0;border-radius:7px;background:none;font-family:inherit;font-size:12px;font-weight:600;color:#7A8772;cursor:pointer}
+.note-edit-btn:active{background:#F4EEE4}
+.note-save-btn{padding:7px 12px;border:none;border-radius:7px;background:var(--accent);color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.note-cancel-btn{padding:7px 12px;border:1.5px solid #D8D0C0;border-radius:7px;background:none;font-family:inherit;font-size:13px;font-weight:600;color:#7A8772;cursor:pointer}
+.note-del{padding:5px 12px;border:1.5px solid #FDDEDD;border-radius:7px;background:none;font-family:inherit;font-size:12px;font-weight:600;color:#C03030;cursor:pointer}
+.note-del:active{background:#FDDEDD}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#1A3D1E;color:#fff;padding:10px 22px;border-radius:22px;font-size:14px;font-weight:600;z-index:600;white-space:nowrap;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.25);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
 #toast.show{transform:translateX(-50%) translateY(0)}
+.sync-toggle-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#F8F6F2;border-radius:9px;margin-bottom:6px}
+.sync-toggle-label{font-size:14px;font-weight:600;color:#1C2018}
+.toggle-switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#D8D0C0;border-radius:24px;transition:.2s}
+.toggle-slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle-switch input:checked + .toggle-slider{background:var(--accent)}
+.toggle-switch input:checked + .toggle-slider:before{transform:translateX(20px)}
 .ver{text-align:center;padding:6px;font-size:10px;color:#ccc;position:fixed;bottom:0;left:0;right:0;pointer-events:none;z-index:1}
 </style>
 </head>
@@ -133,9 +151,21 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
   <button class="type-btn active" data-lt="grocery">&#x1F6D2; Grocery</button>
   <button class="type-btn" data-lt="todo">&#x2705; To-Do</button>
   <button class="type-btn" data-lt="travel">&#x2708;&#xFE0F; Travel</button>
+  <button class="type-btn" data-lt="notes">&#x1F4DD; Notes</button>
 </div>
 
 <div class="content">
+  <!-- NOTES FULL VIEW (shown when Notes selected as list type) -->
+  <div id="notesFullPanel" style="display:none">
+    <div style="display:flex;gap:9px;margin-bottom:12px">
+      <input id="noteInputFull" type="text" placeholder="Write a note..." autocomplete="off"
+        style="flex:1;border:2px solid #D8D0C0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;color:#1C2018;background:#FDFAF3;outline:none">
+      <button id="addNoteFullBtn" style="width:44px;height:44px;flex-shrink:0;border:none;background:var(--accent);color:#fff;border-radius:9px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+    </div>
+    <div id="notesFullContent"></div>
+  </div>
+
+  <div id="mainContent">
   <div class="input-card">
     <div class="input-row">
       <input id="itemInput" type="text" placeholder="Add an item..." autocomplete="off" autocorrect="off" spellcheck="false">
@@ -152,6 +182,7 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
   <div class="tabs">
     <button class="tab active" id="tabList">List <span class="tab-badge" id="listBadge"></span></button>
     <button class="tab" id="tabHistory">&#x1F550; History</button>
+    <button class="tab" id="tabNotes">&#x1F4DD; Notes</button>
   </div>
   <div id="listPanel">
     <div id="listContent"></div>
@@ -162,6 +193,16 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
     <div id="historyContent"></div>
   </div>
 </div>
+  <div id="notesPanel" style="display:none">
+    <div style="display:flex;gap:9px;margin-bottom:12px">
+      <input id="noteInput" type="text" placeholder="Write a note..." autocomplete="off"
+        style="flex:1;border:2px solid #D8D0C0;border-radius:9px;padding:11px 13px;font-family:inherit;font-size:15px;color:#1C2018;background:#FDFAF3;outline:none">
+      <button id="addNoteBtn" style="width:44px;height:44px;flex-shrink:0;border:none;background:var(--accent);color:#fff;border-radius:9px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center">+</button>
+    </div>
+    <div id="notesContent"></div>
+  </div>
+
+  </div><!-- end mainContent -->
 
 <!-- CATEGORY PICKER MODAL -->
 <div class="overlay" id="pickerOverlay">
@@ -215,6 +256,29 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
       <button class="sync-btn outline" id="leaveRoomBtn" style="display:none;border-color:#C03030;color:#C03030">Leave room</button>
       <div class="sync-status" id="syncStatus"></div>
     </div>
+
+    <div class="sync-section">
+      <div class="sync-section-title">What to sync</div>
+      <div id="syncToggles">
+        <div class="sync-toggle-row" data-key="grocery">
+          <span class="sync-toggle-label">&#x1F6D2; Grocery</span>
+          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="grocery" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="sync-toggle-row" data-key="todo">
+          <span class="sync-toggle-label">&#x2705; To-Do</span>
+          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="todo" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="sync-toggle-row" data-key="travel">
+          <span class="sync-toggle-label">&#x2708;&#xFE0F; Travel</span>
+          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="travel" checked><span class="toggle-slider"></span></label>
+        </div>
+        <div class="sync-toggle-row" data-key="notes">
+          <span class="sync-toggle-label">&#x1F4DD; Notes</span>
+          <label class="toggle-switch"><input type="checkbox" class="sync-chk" data-key="notes"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#7A8772;margin-top:8px;line-height:1.5">Unsynced sections stay private on this device only.</div>
+    </div>
   </div>
 </div>
 
@@ -231,7 +295,7 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 </div>
 
 <div id="toast"></div>
-<div class="ver">v4</div>
+<div class="ver">v7</div>
 
 <script>
 // ============================================================
@@ -241,6 +305,7 @@ var LIST_TYPES = {
   grocery:{ name:"&#x1F6D2; Grocery", placeholder:"Add an item...", color:"#2D6B35", emptyIco:"&#x1F6D2;", emptyTitle:"Your list is empty",  emptySub:"Start typing - categories detect automatically." },
   todo:   { name:"&#x2705; To-Do",    placeholder:"Add a task...",   color:"#5A3AA0", emptyIco:"&#x2705;", emptyTitle:"No tasks yet",         emptySub:"Add a task - it'll be categorised automatically." },
   travel: { name:"&#x2708; Travel",   placeholder:"Add to pack...",  color:"#1A5A8A", emptyIco:"&#x2708;", emptyTitle:"Nothing packed yet",  emptySub:"Add items to pack - categories detect automatically." },
+  notes:  { name:"&#x1F4DD; Notes",   placeholder:"",                color:"#A05A10", emptyIco:"&#x1F4DD;", emptyTitle:"No notes yet",        emptySub:"" },
 };
 
 // ============================================================
@@ -562,6 +627,10 @@ var fbUrl = storeGet("fl4_fbUrl") || "";
 var syncRoom = storeGet("fl4_room") || "";
 var syncES = null;
 var syncPaused = false;
+// Per-section sync prefs: default grocery/todo/travel ON, notes OFF
+var syncPrefs = storeGet("fl4_syncPrefs") || { grocery:true, todo:true, travel:true, notes:false };
+function saveSyncPrefs() { storeSet("fl4_syncPrefs", syncPrefs); }
+function isSynced(key) { return !!(syncPrefs[key]); }
 
 // ============================================================
 // DOM REFS
@@ -592,18 +661,20 @@ function applyListTheme() {
   for (var i = 0; i < btns.length; i++) {
     btns[i].classList.toggle("active", btns[i].dataset.lt === currentList);
   }
+  var isNotes = currentList === "notes";
+  document.getElementById("notesFullPanel").style.display = isNotes ? "block" : "none";
+  document.getElementById("mainContent").style.display    = isNotes ? "none"  : "block";
+  if (isNotes) renderNotesFull();
 }
 document.getElementById("typeBar").addEventListener("click", function(e) {
   var btn = e.target.closest(".type-btn");
   if (!btn || btn.dataset.lt === currentList) return;
-  saveCurrentList();
+  if (currentList !== "notes") saveCurrentList();
   currentList = btn.dataset.lt;
   manualCatId = null; currentCatId = null;
   resetInput();
-  loadListData(currentList);
+  if (currentList !== "notes") { loadListData(currentList); switchTab("list"); renderList(); }
   applyListTheme();
-  switchTab("list");
-  renderList();
 });
 
 // ============================================================
@@ -612,12 +683,14 @@ document.getElementById("typeBar").addEventListener("click", function(e) {
 document.getElementById("tabList").addEventListener("click",    function(){ switchTab("list"); });
 document.getElementById("tabHistory").addEventListener("click", function(){ switchTab("history"); });
 function switchTab(t) {
-  var isList = t === "list";
-  document.getElementById("listPanel").style.display    = isList ? "block" : "none";
-  document.getElementById("historyPanel").style.display = isList ? "none" : "block";
-  document.getElementById("tabList").className    = "tab" + (isList ? " active" : "");
-  document.getElementById("tabHistory").className = "tab" + (isList ? "" : " active");
-  if (!isList) renderHistory();
+  document.getElementById("listPanel").style.display    = t==="list"    ? "block" : "none";
+  document.getElementById("historyPanel").style.display = t==="history" ? "block" : "none";
+  document.getElementById("notesPanel").style.display   = t==="notes"   ? "block" : "none";
+  document.getElementById("tabList").className    = "tab" + (t==="list"    ? " active" : "");
+  document.getElementById("tabHistory").className = "tab" + (t==="history" ? " active" : "");
+  document.getElementById("tabNotes").className   = "tab" + (t==="notes"   ? " active" : "");
+  if (t==="history") renderHistory();
+  if (t==="notes")   renderNotes();
 }
 
 // ============================================================
@@ -986,8 +1059,21 @@ document.getElementById("syncBtn").addEventListener("click", function() {
   document.getElementById("leaveRoomBtn").style.display = syncRoom ? "block" : "none";
   document.getElementById("joinRoomBtn").style.display = syncRoom ? "none" : "block";
   document.getElementById("createRoomBtn").style.display = syncRoom ? "none" : "block";
+  // Restore toggle states
+  document.querySelectorAll(".sync-chk").forEach(function(chk) {
+    chk.checked = isSynced(chk.dataset.key);
+  });
   updateSyncStatus();
   document.getElementById("syncOverlay").classList.add("open");
+});
+
+// Save prefs whenever a toggle changes
+document.getElementById("syncToggles").addEventListener("change", function(e) {
+  var chk = e.target;
+  if (!chk.classList.contains("sync-chk")) return;
+  syncPrefs[chk.dataset.key] = chk.checked;
+  saveSyncPrefs();
+  if (fbUrl && syncRoom) pushSync();
 });
 document.getElementById("syncClose").addEventListener("click", function(){ document.getElementById("syncOverlay").classList.remove("open"); });
 document.getElementById("syncOverlay").addEventListener("click", function(e){ if(e.target===this) this.classList.remove("open"); });
@@ -1063,9 +1149,12 @@ function pushSync() {
   if (!fbUrl || !syncRoom || syncPaused) return;
   var data = {};
   ["grocery","todo","travel"].forEach(function(lt) {
+    if (!isSynced(lt)) return;
     var d = listData[lt];
-    if (d) data[lt] = d;
+    var notes = storeGet("fl4_notes_" + lt) || [];
+    if (d) data[lt] = { items: d.items, hist: d.hist, notes: notes };
   });
+  if (isSynced("notes")) data["global_notes"] = storeGet("fl4_notes_global") || [];
   fetch(fbRoomUrl(), { method:"PUT", body:JSON.stringify(data), headers:{"Content-Type":"application/json"} })
     .catch(function(){});
 }
@@ -1076,6 +1165,7 @@ function fetchSync(cb) {
     if (data && typeof data === "object") {
       syncPaused = true;
       ["grocery","todo","travel"].forEach(function(lt) {
+        if (!isSynced(lt)) return;  // skip unsynced sections
         if (data[lt] && typeof data[lt]==="object") {
           var d = data[lt];
           listData[lt] = {
@@ -1083,8 +1173,11 @@ function fetchSync(cb) {
             hist:  Array.isArray(d.hist)  ? d.hist.filter(Boolean)  : [],
           };
           storeSet(LIST_CONFIG[lt].key, listData[lt]);
+          if (Array.isArray(d.notes)) storeSet("fl4_notes_" + lt, d.notes.filter(Boolean));
         }
       });
+      if (isSynced("notes") && Array.isArray(data["global_notes"])) storeSet("fl4_notes_global", data["global_notes"].filter(Boolean));
+      if (currentList === "notes") renderNotesFull();
       syncPaused = false;
       renderList();
     }
@@ -1133,6 +1226,126 @@ function toast(msg) {
   toastTimer=setTimeout(function(){ elToast.classList.remove("show"); }, 2200);
 }
 function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+
+// ============================================================
+// NOTES
+// ============================================================
+document.getElementById("tabNotes").addEventListener("click", function(){ switchTab("notes"); });
+
+function getNotes(lt) {
+  var key = lt || currentList;
+  var v = storeGet("fl4_notes_" + key);
+  return Array.isArray(v) ? v : [];
+}
+function saveNotes(notes, lt) {
+  var key = lt || currentList;
+  storeSet("fl4_notes_" + key, notes);
+}
+
+document.getElementById("addNoteBtn").addEventListener("click", function(){
+  addNote(currentList, "noteInput", renderNotes);
+});
+document.getElementById("noteInput").addEventListener("keydown", function(e){
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addNote(currentList, "noteInput", renderNotes); }
+});
+document.getElementById("addNoteFullBtn").addEventListener("click", function(){
+  addNote("global", "noteInputFull", renderNotesFull);
+});
+document.getElementById("noteInputFull").addEventListener("keydown", function(e){
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addNote("global", "noteInputFull", renderNotesFull); }
+});
+
+function addNote(lt, inputId, renderFn) {
+  var text = document.getElementById(inputId).value.trim();
+  if (!text) return;
+  var notes = getNotes(lt);
+  notes.unshift({ id: Date.now(), text: text, ts: Date.now() });
+  saveNotes(notes, lt);
+  document.getElementById(inputId).value = "";
+  renderFn();
+  toast("Note saved");
+  if (fbUrl && syncRoom) pushSync();
+}
+
+function fmtDate(ts) {
+  var d = new Date(ts);
+  var p = function(x){ return x < 10 ? "0"+x : x; };
+  return d.getDate()+"/"+p(d.getMonth()+1)+"/"+d.getFullYear()+" "+p(d.getHours())+":"+p(d.getMinutes());
+}
+
+function renderNotesIn(elId, lt, renderFn) {
+  var el = document.getElementById(elId);
+  var notes = getNotes(lt);
+  if (!notes.length) {
+    el.innerHTML = "<div class='empty'><div class='empty-ico'>&#x1F4DD;</div><div class='empty-title'>No notes yet</div><div class='empty-sub'>Type a note above and press Enter to save it.</div></div>";
+    return;
+  }
+  var html = "";
+  for (var i = 0; i < notes.length; i++) {
+    var n = notes[i];
+    var edited = n.editedTs ? " &bull; edited "+fmtDate(n.editedTs) : "";
+    html += "<div class='note-card' data-id='"+n.id+"'>" +
+      "<div class='note-display'>" +
+        "<div class='note-text' id='nt_"+n.id+"'>"+escNl(n.text)+"</div>" +
+        "<div class='note-meta'>"+fmtDate(n.ts)+edited+"</div>" +
+      "</div>" +
+      "<div class='note-edit-box' id='ne_"+n.id+"' style='display:none'>" +
+        "<textarea class='note-textarea' rows='3'>"+esc(n.text)+"</textarea>" +
+        "<div style='display:flex;gap:6px;margin-top:6px'>" +
+          "<button class='note-save-btn' style='flex:1'>Save</button>" +
+          "<button class='note-cancel-btn' style='flex:1'>Cancel</button>" +
+        "</div>" +
+      "</div>" +
+      "<div style='display:flex;gap:6px;margin-top:8px'>" +
+        "<button class='note-edit-btn'>&#x270E; Edit</button>" +
+        "<button class='note-del'>&#x2715; Delete</button>" +
+      "</div>" +
+    "</div>";
+  }
+  el.innerHTML = html;
+
+  el.querySelectorAll(".note-card").forEach(function(card) {
+    var id = +card.dataset.id;
+
+    card.querySelector(".note-edit-btn").addEventListener("click", function() {
+      card.querySelector(".note-display").style.display = "none";
+      card.querySelector(".note-edit-box").style.display = "block";
+      card.querySelector(".note-textarea").focus();
+    });
+
+    card.querySelector(".note-cancel-btn").addEventListener("click", function() {
+      card.querySelector(".note-display").style.display = "block";
+      card.querySelector(".note-edit-box").style.display = "none";
+    });
+
+    card.querySelector(".note-save-btn").addEventListener("click", function() {
+      var newText = card.querySelector(".note-textarea").value.trim();
+      if (!newText) return;
+      var notes = getNotes(lt);
+      for (var i = 0; i < notes.length; i++) {
+        if (notes[i].id === id) { notes[i].text = newText; notes[i].editedTs = Date.now(); break; }
+      }
+      saveNotes(notes, lt);
+      if (fbUrl && syncRoom) pushSync();
+      renderFn();
+      toast("Note updated");
+    });
+
+    card.querySelector(".note-del").addEventListener("click", function() {
+      var notes = getNotes(lt).filter(function(n){ return n.id !== id; });
+      saveNotes(notes, lt);
+      if (fbUrl && syncRoom) pushSync();
+      renderFn();
+    });
+  });
+}
+
+function renderNotes()     { renderNotesIn("notesContent",     currentList, renderNotes); }
+function renderNotesFull() { renderNotesIn("notesFullContent", "global",    renderNotesFull); }
+
+function escNl(s) {
+  return esc(s).replace(/\n/g, "<br>");
+}
 
 // ============================================================
 // SERVICE WORKER
