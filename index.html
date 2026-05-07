@@ -135,6 +135,13 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 .toggle-slider:before{content:"";position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
 .toggle-switch input:checked + .toggle-slider{background:var(--accent)}
 .toggle-switch input:checked + .toggle-slider:before{transform:translateX(20px)}
+.done-toggle{display:flex;align-items:center;gap:8px;margin:22px 0 7px;cursor:pointer;user-select:none}
+.done-toggle:active{opacity:.7}
+.done-toggle-arrow{font-size:12px;color:#7A8772;transition:transform .2s;display:inline-block}
+.done-toggle-arrow.collapsed{transform:rotate(-90deg)}
+.done-toggle .sec-line{flex:1}
+.done-toggle .sec-count{font-size:11px;font-weight:700;color:#7A8772;background:#F4EEE4;padding:1px 7px;border-radius:10px}
+.done-items{overflow:hidden;transition:max-height .25s ease}
 .ver{text-align:center;padding:6px;font-size:10px;color:#ccc;position:fixed;bottom:0;left:0;right:0;pointer-events:none;z-index:1}
 </style>
 </head>
@@ -308,7 +315,7 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 </div>
 
 <div id="toast"></div>
-<div class="ver">v10</div>
+<div class="ver">v11</div>
 
 <script>
 // ============================================================
@@ -825,10 +832,32 @@ function renderList() {
     for (var ii=0;ii<gi.length;ii++) html+=cardHTML(gi[ii],c);
   }
   if (done.length) {
-    html+="<div class='sec-hdr' style='margin-top:22px'><span>&#10003;&ensp;<span class='sec-name' style='color:#7A8772'>Done</span></span><div class='sec-line'></div><span class='sec-count'>"+done.length+"</span></div>";
+    var doneOpen = storeGet("fl4_doneOpen_"+currentList);
+    var isOpen = (doneOpen === null) ? true : !!doneOpen; // default open
+    html+="<div class='done-toggle' id='doneToggle'>" +
+      "<span class='done-toggle-arrow"+(isOpen?"":" collapsed")+"' id='doneArrow'>&#9660;</span>" +
+      "<span class='sec-name' style='color:#7A8772'>&#10003; Done</span>" +
+      "<div class='sec-line'></div>" +
+      "<span class='sec-count'>"+done.length+"</span>" +
+      "</div>";
+    html+="<div class='done-items' id='doneItems' style='display:"+(isOpen?"block":"none")+"'>";
     for (var di=0;di<done.length;di++) html+=cardHTML(done[di],getCat(done[di].catId||"other"));
+    html+="</div>";
   }
   elListC.innerHTML = html;
+  // Wire done section toggle
+  var doneToggleEl = elListC.querySelector("#doneToggle");
+  if (doneToggleEl) {
+    doneToggleEl.addEventListener("click", function() {
+      var arrow = document.getElementById("doneArrow");
+      var items = document.getElementById("doneItems");
+      var isOpen = items.style.display !== "none";
+      items.style.display = isOpen ? "none" : "block";
+      arrow.classList.toggle("collapsed", isOpen);
+      storeSet("fl4_doneOpen_"+currentList, !isOpen);
+    });
+  }
+
   elListC.querySelectorAll(".item-card").forEach(function(card) {
     var id = +card.dataset.id;
     card.addEventListener("click", function(e){

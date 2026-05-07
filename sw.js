@@ -1,4 +1,4 @@
-const CACHE = 'freshlist-v9';
+const CACHE = 'freshlist-v10';
 const ASSETS = ['./index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
