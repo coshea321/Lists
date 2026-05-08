@@ -296,8 +296,9 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
       <div class="sync-section-title">Firebase Database URL</div>
       <input class="sync-input" id="fbUrlInput" type="url" placeholder="https://your-app-default-rtdb.firebaseio.com">
       <div style="font-size:12px;color:#7A8772;line-height:1.5">
-        Free setup: <strong>firebase.google.com</strong> &#x2192; New project &#x2192; Realtime Database &#x2192; Copy URL.<br>
-        Set rules to <code style="background:#F0EDE8;padding:1px 4px;border-radius:4px">{"rules":{".read":true,".write":true}}</code>
+        Free setup: <strong>firebase.google.com</strong> &#x2192; New project &#x2192; Realtime Database &#x2192; Copy URL.<br><br>
+        Set <strong>Rules</strong> tab to:<br>
+        <code style="background:#F0EDE8;padding:4px 6px;border-radius:4px;display:block;margin-top:4px;font-size:11px;line-height:1.6">{"rules":{"rooms":{"$roomId":{".read":true,".write":true,".validate":"newData.hasChildren(['data'])||newData.hasChildren(['meta'])"}}}} </code>
       </div>
     </div>
 
@@ -307,7 +308,8 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
         <div class="sync-room-display" id="roomCodeDisplay"></div>
         <div style="font-size:13px;color:#7A8772;text-align:center;margin-bottom:10px">Share this code with the other person</div>
       </div>
-      <input class="sync-input" id="roomCodeInput" placeholder="Enter 6-letter room code to join">
+      <input class="sync-input" id="roomCodeInput" placeholder="Enter room code to join">
+      <input class="sync-input" id="roomPasswordInput" type="password" placeholder="Room password (optional)">
       <button class="sync-btn" id="createRoomBtn">Create new room</button>
       <button class="sync-btn outline" id="joinRoomBtn">Join existing room</button>
       <button class="sync-btn outline" id="leaveRoomBtn" style="display:none;border-color:#C03030;color:#C03030">Leave room</button>
@@ -364,7 +366,7 @@ header{background:var(--accent);padding:12px 14px 10px;display:flex;align-items:
 </div>
 
 <div id="toast"></div>
-<div class="ver">v13</div>
+<div class="ver">v14</div>
 
 <script>
 // ============================================================
@@ -1177,8 +1179,15 @@ document.getElementById("createRoomBtn").addEventListener("click", function() {
   var url = document.getElementById("fbUrlInput").value.trim().replace(/\/$/, "");
   if (!url) { toast("Enter your Firebase URL first"); return; }
   fbUrl = url; storeSet("fl4_fbUrl", fbUrl);
-  syncRoom = Math.random().toString(36).substr(2,6).toUpperCase();
+  syncRoom = (Math.random().toString(36).substr(2,5) + Math.random().toString(36).substr(2,5)).toUpperCase();
   storeSet("fl4_room", syncRoom);
+  var pw = document.getElementById("roomPasswordInput").value.trim();
+  storeSet("fl4_roomPw", pw);
+  // Store password hash in Firebase so joiners can verify
+  var meta = { createdAt: Date.now(), pwHash: pw ? hashStr(pw) : "" };
+  fetch(fbRoomUrl().replace(".json", "/meta.json"), {
+    method:"PUT", body:JSON.stringify(meta), headers:{"Content-Type":"application/json"}
+  }).catch(function(){});
   pushSync();
   startListening();
   document.getElementById("syncRoomDisplay").style.display = "block";
@@ -1193,21 +1202,47 @@ document.getElementById("createRoomBtn").addEventListener("click", function() {
 document.getElementById("joinRoomBtn").addEventListener("click", function() {
   var url = document.getElementById("fbUrlInput").value.trim().replace(/\/$/, "");
   var code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+  var pw = document.getElementById("roomPasswordInput").value.trim();
   if (!url) { toast("Enter your Firebase URL first"); return; }
   if (!code || code.length < 4) { toast("Enter a valid room code"); return; }
-  fbUrl = url; storeSet("fl4_fbUrl", fbUrl);
-  syncRoom = code; storeSet("fl4_room", syncRoom);
-  // Pull current state then listen
-  fetchSync(function() {
-    startListening();
-    document.getElementById("syncRoomDisplay").style.display = "block";
-    document.getElementById("roomCodeDisplay").textContent = syncRoom;
-    document.getElementById("joinRoomBtn").style.display = "none";
-    document.getElementById("createRoomBtn").style.display = "none";
-    document.getElementById("leaveRoomBtn").style.display = "block";
-    updateSyncStatus();
-    toast("Joined room: " + syncRoom);
-  });
+  fbUrl = url;
+  syncRoom = code;
+  // Verify password before fully joining
+  fetch(fbUrl + "/rooms/" + syncRoom + "/meta.json")
+    .then(function(r){ return r.json(); })
+    .then(function(meta) {
+      if (meta && meta.pwHash && meta.pwHash !== hashStr(pw)) {
+        syncRoom = ""; toast("Incorrect room password"); return;
+      }
+      storeSet("fl4_fbUrl", fbUrl);
+      storeSet("fl4_room", syncRoom);
+      storeSet("fl4_roomPw", pw);
+      fetchSync(function() {
+        startListening();
+        document.getElementById("syncRoomDisplay").style.display = "block";
+        document.getElementById("roomCodeDisplay").textContent = syncRoom;
+        document.getElementById("joinRoomBtn").style.display = "none";
+        document.getElementById("createRoomBtn").style.display = "none";
+        document.getElementById("leaveRoomBtn").style.display = "block";
+        updateSyncStatus();
+        toast("Joined room: " + syncRoom);
+      });
+    })
+    .catch(function() {
+      // No meta = old room or no password set, join anyway
+      storeSet("fl4_fbUrl", fbUrl);
+      storeSet("fl4_room", syncRoom);
+      fetchSync(function() {
+        startListening();
+        document.getElementById("syncRoomDisplay").style.display = "block";
+        document.getElementById("roomCodeDisplay").textContent = syncRoom;
+        document.getElementById("joinRoomBtn").style.display = "none";
+        document.getElementById("createRoomBtn").style.display = "none";
+        document.getElementById("leaveRoomBtn").style.display = "block";
+        updateSyncStatus();
+        toast("Joined room: " + syncRoom);
+      });
+    });
 });
 
 document.getElementById("leaveRoomBtn").addEventListener("click", function() {
@@ -1237,7 +1272,17 @@ function updateSyncStatus() {
 }
 
 function fbRoomUrl() {
-  return fbUrl + "/rooms/" + syncRoom + ".json";
+  return fbUrl + "/rooms/" + syncRoom + "/data.json";
+}
+
+function hashStr(s) {
+  // Simple 32-bit hash - sufficient for room password verification
+  var h = 5381;
+  for (var i = 0; i < s.length; i++) {
+    h = ((h << 5) + h) ^ s.charCodeAt(i);
+    h = h & h; // 32-bit
+  }
+  return (h >>> 0).toString(36);
 }
 
 function pushSync() {
@@ -1286,7 +1331,7 @@ function startListening() {
   if (syncES) syncES.close();
   if (!fbUrl || !syncRoom) return;
   try {
-    syncES = new EventSource(fbUrl + "/rooms/" + syncRoom + ".json?accept=text/event-stream");
+    syncES = new EventSource(fbUrl + "/rooms/" + syncRoom + "/data.json?accept=text/event-stream");
     syncES.addEventListener("put", function(e) {
       try {
         var payload = JSON.parse(e.data);
